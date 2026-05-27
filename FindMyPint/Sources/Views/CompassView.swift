@@ -4,11 +4,20 @@ import CoreLocation
 struct CompassView: View {
     @ObservedObject var viewModel: PlaceViewModel
     @ObservedObject var locationManager = LocationManager.shared
+    @Environment(\.colorScheme) var colorScheme
 
-    private var compassRotation: Double {
-        guard let nearest = viewModel.nearestPlace else { return 0 }
-        // Arrow always points to destination - rotate by absolute bearing
-        return nearest.bearing
+    private var dialRotation: Double {
+        guard let heading = locationManager.heading else { return 0 }
+        return -heading.magneticHeading
+    }
+
+    private var needleRotation: Double {
+        guard let heading = locationManager.heading,
+              let nearest = viewModel.nearestPlace else { return 0 }
+        var angle = nearest.bearing - heading.magneticHeading
+        while angle > 180 { angle -= 360 }
+        while angle < -180 { angle += 360 }
+        return angle
     }
 
     private var directionString: String {
@@ -40,231 +49,210 @@ struct CompassView: View {
         }
     }
 
+    private var isDark: Bool { colorScheme == .dark }
+
     var body: some View {
         ZStack {
-            // Deep gradient background
-            LinearGradient(
-                colors: [
-                    Color(hex: "0f0c29"),
-                    Color(hex: "302b63"),
-                    Color(hex: "24243e")
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            (isDark ? Color(hex: "1a1a1a") : Color(hex: "F5F0E6"))
+                .ignoresSafeArea()
 
-            VStack(spacing: 32) {
-                // Compass instrument
+            VStack(spacing: 24) {
                 ZStack {
-                    // Outer glow ring
-                    Circle()
-                        .stroke(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.3), Color.clear],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                        .frame(width: 300, height: 300)
-                        .blur(radius: 2)
-
-                    // Glass outer ring
+                    // Bezel
                     Circle()
                         .strokeBorder(
                             AngularGradient(
-                                colors: [
-                                    Color.white.opacity(0.4),
-                                    Color.white.opacity(0.1),
-                                    Color.white.opacity(0.4)
-                                ],
+                                colors: isDark
+                                    ? [Color(hex: "888888"), Color(hex: "333333"), Color(hex: "888888"), Color(hex: "555555"), Color(hex: "333333")]
+                                    : [Color(hex: "d4d4d4"), Color(hex: "a0a0a0"), Color(hex: "d4d4d4"), Color(hex: "b8b8b8"), Color(hex: "a0a0a0")],
                                 center: .center,
                                 startAngle: .degrees(0),
                                 endAngle: .degrees(360)
                             ),
-                            lineWidth: 1.5
+                            lineWidth: 8
                         )
                         .frame(width: 300, height: 300)
-                        .background(
-                            Circle()
-                                .fill(.ultraThinMaterial)
-                        )
+                        .shadow(color: .black.opacity(isDark ? 0.4 : 0.15), radius: 8, x: 0, y: 4)
 
-                    // Tick marks
-                    ForEach(0..<60, id: \.self) { index in
-                        Rectangle()
-                            .fill(Color.white.opacity(index % 5 == 0 ? 0.6 : 0.2))
-                            .frame(width: index % 5 == 0 ? 2 : 1, height: index % 5 == 0 ? 12 : 6)
-                            .offset(y: -130)
-                            .rotationEffect(.degrees(Double(index) * 6))
+                    // Inner dial
+                    Circle()
+                        .fill(isDark ? Color(hex: "0d0d0d") : Color(hex: "FAF8F5"))
+                        .frame(width: 280, height: 280)
+
+                    // Rotating dial
+                    ZStack {
+                        ForEach(0..<72, id: \.self) { index in
+                            Rectangle()
+                                .fill(index % 6 == 0
+                                    ? (isDark ? .white : Color(hex: "333333"))
+                                    : (isDark ? .white.opacity(0.4) : Color(hex: "333333").opacity(0.4))
+                                )
+                                .frame(width: index % 6 == 0 ? 2 : 1, height: index % 6 == 0 ? 16 : 8)
+                                .offset(y: -120)
+                                .rotationEffect(.degrees(Double(index) * 5))
+                        }
+
+                        ForEach(["N", "E", "S", "W"], id: \.self) { cardinal in
+                            Text(cardinal)
+                                .font(.system(size: 22, weight: .bold, design: .rounded))
+                                .foregroundColor(cardinal == "N"
+                                    ? (isDark ? Color(hex: "ff3b30") : Color(hex: "c41e3a"))
+                                    : (isDark ? .white : Color(hex: "333333"))
+                                )
+                                .offset(y: -100)
+                                .rotationEffect(.degrees(cardinal.degreesForCardinal))
+                        }
+
+                        ForEach([30, 60, 120, 150, 210, 240, 300, 330], id: \.self) { deg in
+                            Text("\(deg)°")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(isDark ? .white.opacity(0.5) : Color(hex: "666666"))
+                                .offset(y: -100)
+                                .rotationEffect(.degrees(Double(deg)))
+                        }
                     }
+                    .rotationEffect(.degrees(dialRotation))
+                    .animation(.spring(response: 0.3, dampingFraction: 0.8), value: dialRotation)
 
-                    // Cardinal direction labels
-                    ForEach(["N", "E", "S", "W"], id: \.self) { cardinal in
-                        Text(cardinal)
-                            .font(.system(size: 18, weight: .medium, design: .rounded))
-                            .foregroundColor(.white.opacity(0.7))
-                            .offset(y: -110)
-                            .rotationEffect(.degrees(cardinal.degreesForCardinal))
-                    }
+                    // Needle
+                    CompassNeedle(isDark: isDark)
+                        .rotationEffect(.degrees(needleRotation))
+                        .animation(.spring(response: 0.25, dampingFraction: 0.7), value: needleRotation)
 
-                    // Center heading display
-                    VStack(spacing: 4) {
+                    // Center display
+                    VStack(spacing: 2) {
                         Text("\(headingDegrees)")
-                            .font(.system(size: 48, weight: .ultraLight, design: .rounded))
-                            .foregroundColor(.white)
+                            .font(.system(size: 44, weight: .ultraLight, design: .rounded))
+                            .foregroundColor(isDark ? .white : Color(hex: "333333"))
 
                         Text("°")
-                            .font(.system(size: 24, weight: .light))
-                            .foregroundColor(.white.opacity(0.6))
-                            .offset(x: 12, y: -8)
+                            .font(.system(size: 20, weight: .light))
+                            .foregroundColor(isDark ? .white.opacity(0.6) : Color(hex: "666666"))
+                            .offset(x: 10, y: -6)
                     }
 
-                    // Direction needle - points to destination
-                    CompassNeedle()
-                        .rotationEffect(.degrees(compassRotation))
-                        .animation(.spring(response: 0.25, dampingFraction: 0.7), value: compassRotation)
-                        .offset(y: -60)
-
-                    // Fixed north indicator
-                    Image(systemName: "triangle.fill")
-                        .font(.system(size: 10))
-                        .foregroundColor(.white.opacity(0.8))
-                        .offset(y: -145)
+                    // Red triangle at top
+                    Triangle()
+                        .fill(isDark ? Color(hex: "ff3b30") : Color(hex: "c41e3a"))
+                        .frame(width: 12, height: 16)
+                        .offset(y: -150)
                 }
                 .frame(width: 300, height: 300)
 
                 // Info card
                 if let place = viewModel.nearestPlace {
-                    GlassCard {
-                        VStack(spacing: 16) {
-                            HStack(spacing: 16) {
-                                // Icon
-                                ZStack {
-                                    Circle()
-                                        .fill(
-                                            LinearGradient(
-                                                colors: [Color(hex: "7b2ff7").opacity(0.4), Color(hex: "00d4ff").opacity(0.4)],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
+                    VStack(spacing: 16) {
+                        HStack(spacing: 16) {
+                            ZStack {
+                                Circle()
+                                    .fill(isDark ? Color(hex: "2a2a2a") : Color(hex: "e8e4dc"))
+                                    .frame(width: 52, height: 52)
+
+                                Text(place.category.icon)
+                                    .font(.system(size: 26))
+                            }
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(place.name)
+                                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                                    .foregroundColor(isDark ? .white : Color(hex: "222222"))
+                                    .lineLimit(1)
+
+                                Text(place.category.rawValue.capitalized)
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundColor(isDark ? .white.opacity(0.5) : Color(hex: "666666"))
+                            }
+
+                            Spacer()
+
+                            if let isOpen = place.isOpen {
+                                Text(isOpen ? "Open" : "Closed")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(isOpen
+                                        ? (isDark ? Color(hex: "34c759") : Color(hex: "2e7d32"))
+                                        : (isDark ? Color(hex: "ff3b30") : Color(hex: "c41e3a"))
+                                    )
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(
+                                        Capsule()
+                                            .fill(isOpen
+                                                ? (isDark ? Color(hex: "34c759").opacity(0.2) : Color(hex: "2e7d32").opacity(0.15))
+                                                : (isDark ? Color(hex: "ff3b30").opacity(0.2) : Color(hex: "c41e3a").opacity(0.15))
                                             )
-                                        )
-                                        .frame(width: 56, height: 56)
-
-                                    Text(place.category.icon)
-                                        .font(.system(size: 28))
-                                }
-
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(place.name)
-                                        .font(.system(size: 20, weight: .semibold, design: .rounded))
-                                        .foregroundColor(.white)
-                                        .lineLimit(1)
-
-                                    Text(place.category.rawValue)
-                                        .font(.system(size: 14, weight: .medium))
-                                        .foregroundColor(.white.opacity(0.6))
-                                }
-
-                                Spacer()
-                            }
-
-                            Divider()
-                                .background(Color.white.opacity(0.2))
-
-                            HStack(spacing: 24) {
-                                // Distance
-                                VStack(spacing: 4) {
-                                    Text("DISTANCE")
-                                        .font(.system(size: 10, weight: .semibold))
-                                        .foregroundColor(.white.opacity(0.4))
-                                        .tracking(1)
-
-                                    Text(formatDistance(place.distance))
-                                        .font(.system(size: 22, weight: .light, design: .rounded))
-                                        .foregroundColor(.white)
-                                }
-
-                                Spacer()
-
-                                // Direction
-                                VStack(spacing: 4) {
-                                    Text("BEARING")
-                                        .font(.system(size: 10, weight: .semibold))
-                                        .foregroundColor(.white.opacity(0.4))
-                                        .tracking(1)
-
-                                    Text(directionString)
-                                        .font(.system(size: 22, weight: .light, design: .rounded))
-                                        .foregroundColor(.white)
-                                }
-
-                                Spacer()
-
-                                // Status
-                                if let isOpen = place.isOpen {
-                                    VStack(spacing: 4) {
-                                        Text("STATUS")
-                                            .font(.system(size: 10, weight: .semibold))
-                                            .foregroundColor(.white.opacity(0.4))
-                                            .tracking(1)
-
-                                        Text(isOpen ? "OPEN" : "CLOSED")
-                                            .font(.system(size: 14, weight: .bold))
-                                            .foregroundColor(isOpen ? Color(hex: "00ff88") : Color(hex: "ff4757"))
-                                    }
-                                }
-                            }
-
-                            if let hours = place.hours {
-                                HStack {
-                                    Image(systemName: "clock")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.white.opacity(0.4))
-
-                                    Text(hours)
-                                        .font(.system(size: 13))
-                                        .foregroundColor(.white.opacity(0.6))
-
-                                    Spacer()
-                                }
+                                    )
                             }
                         }
-                        .padding(20)
+
+                        HStack(spacing: 32) {
+                            VStack(spacing: 4) {
+                                Text("BEARING")
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundColor(isDark ? .white.opacity(0.4) : Color(hex: "999999"))
+                                    .tracking(1)
+
+                                Text(directionString)
+                                    .font(.system(size: 20, weight: .light, design: .rounded))
+                                    .foregroundColor(isDark ? .white : Color(hex: "333333"))
+                            }
+
+                            Rectangle()
+                                .fill(isDark ? .white.opacity(0.1) : Color(hex: "dddddd"))
+                                .frame(width: 1, height: 30)
+
+                            VStack(spacing: 4) {
+                                Text("DISTANCE")
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundColor(isDark ? .white.opacity(0.4) : Color(hex: "999999"))
+                                    .tracking(1)
+
+                                Text(formatDistance(place.distance))
+                                    .font(.system(size: 20, weight: .light, design: .rounded))
+                                    .foregroundColor(isDark ? .white : Color(hex: "333333"))
+                            }
+
+                            Rectangle()
+                                .fill(isDark ? .white.opacity(0.1) : Color(hex: "dddddd"))
+                                .frame(width: 1, height: 30)
+
+                            VStack(spacing: 4) {
+                                Text("TO DEST")
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundColor(isDark ? .white.opacity(0.4) : Color(hex: "999999"))
+                                    .tracking(1)
+
+                                Text("\(Int(needleRotation))°")
+                                    .font(.system(size: 20, weight: .light, design: .rounded))
+                                    .foregroundColor(isDark ? .white : Color(hex: "333333"))
+                            }
+                        }
                     }
+                    .padding(20)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(isDark ? Color(hex: "252525") : Color.white)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .stroke(isDark ? .white.opacity(0.1) : Color(hex: "e0e0e0"), lineWidth: 1)
+                            )
+                            .shadow(color: .black.opacity(isDark ? 0.3 : 0.08), radius: 10, x: 0, y: 4)
+                    )
                     .padding(.horizontal, 24)
                 } else if viewModel.isLoading {
-                    GlassCard {
-                        HStack(spacing: 16) {
-                            ProgressView()
-                                .tint(.white)
-
-                            Text("Searching for beer...")
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(.white.opacity(0.7))
-                        }
-                        .padding(24)
-                    }
-                    .padding(.horizontal, 24)
+                    ProgressView()
+                        .tint(isDark ? .white : Color(hex: "333333"))
+                        .scaleEffect(1.2)
                 } else {
-                    GlassCard {
-                        VStack(spacing: 12) {
-                            Image(systemName: "beer.slash")
-                                .font(.system(size: 36))
-                                .foregroundColor(.white.opacity(0.4))
+                    VStack(spacing: 8) {
+                        Image(systemName: "beer.slash")
+                            .font(.system(size: 32))
+                            .foregroundColor(isDark ? .white.opacity(0.3) : Color(hex: "999999"))
 
-                            Text("No beer nearby...")
-                                .font(.system(size: 18, weight: .medium))
-                                .foregroundColor(.white.opacity(0.7))
-
-                            Text("Keep walking")
-                                .font(.system(size: 14))
-                                .foregroundColor(.white.opacity(0.4))
-                        }
-                        .padding(24)
+                        Text("No beer nearby...")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(isDark ? .white.opacity(0.5) : Color(hex: "666666"))
                     }
-                    .padding(.horizontal, 24)
+                    .padding(24)
                 }
 
                 Spacer()
@@ -276,103 +264,64 @@ struct CompassView: View {
 
 // MARK: - Compass Needle
 struct CompassNeedle: View {
+    let isDark: Bool
+
     var body: some View {
         ZStack {
-            // Needle shadow/glow
-            NeedleShape()
-                .fill(
-                    LinearGradient(
-                        colors: [Color(hex: "00d4ff").opacity(0.6), Color(hex: "00d4ff").opacity(0.2)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .blur(radius: 4)
-                .scaleEffect(x: 1.2, y: 1.1)
+            // Red needle pointing to destination
+            NeedleTip()
+                .fill(isDark ? Color(hex: "ff3b30") : Color(hex: "c41e3a"))
+                .frame(width: 20, height: 70)
+                .offset(y: -35)
 
-            // Main needle - cyan tip pointing to destination
-            NeedleShape()
-                .fill(
-                    LinearGradient(
-                        colors: [Color(hex: "00d4ff"), Color(hex: "0099cc")],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-
-            // Needle highlight
-            NeedleShape()
-                .stroke(Color.white.opacity(0.5), lineWidth: 1)
-                .scaleEffect(x: 0.95, y: 0.95)
+            // White tail
+            NeedleTip()
+                .fill(isDark ? Color.white : Color(hex: "333333"))
+                .frame(width: 20, height: 70)
+                .rotationEffect(.degrees(180))
+                .offset(y: 35)
 
             // Center pivot
             Circle()
                 .fill(
                     RadialGradient(
-                        colors: [Color.white, Color.white.opacity(0.5)],
+                        colors: isDark ? [Color(hex: "666666"), Color(hex: "333333")] : [Color(hex: "888888"), Color(hex: "cccccc")],
                         center: .center,
                         startRadius: 0,
-                        endRadius: 6
+                        endRadius: 8
                     )
                 )
-                .frame(width: 12, height: 12)
+                .frame(width: 16, height: 16)
         }
-        .frame(width: 24, height: 80)
     }
 }
 
-struct NeedleShape: Shape {
+struct NeedleTip: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        let width = rect.width
-        let height = rect.height
-
-        // Pointed top (direction of destination)
-        path.move(to: CGPoint(x: width / 2, y: 0))
-        path.addLine(to: CGPoint(x: width, y: height * 0.7))
+        path.move(to: CGPoint(x: rect.midX, y: 0))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
         path.addQuadCurve(
-            to: CGPoint(x: width / 2, y: height),
-            control: CGPoint(x: width / 2, y: height * 0.85)
+            to: CGPoint(x: rect.midX, y: rect.maxY * 0.7),
+            control: CGPoint(x: rect.midX, y: rect.maxY)
         )
         path.addQuadCurve(
-            to: CGPoint(x: 0, y: height * 0.7),
-            control: CGPoint(x: width / 2, y: height * 0.85)
+            to: CGPoint(x: rect.minX, y: rect.maxY),
+            control: CGPoint(x: rect.midX, y: rect.maxY)
         )
         path.closeSubpath()
-
         return path
     }
 }
 
-// MARK: - Glass Card
-struct GlassCard<Content: View>: View {
-    let content: Content
-
-    init(@ViewBuilder content: () -> Content) {
-        self.content = content()
-    }
-
-    var body: some View {
-        content
-            .background(
-                RoundedRectangle(cornerRadius: 24)
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 24)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        Color.white.opacity(0.3),
-                                        Color.white.opacity(0.05)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    )
-                    .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
-            )
+struct Triangle: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        path.closeSubpath()
+        return path
     }
 }
 

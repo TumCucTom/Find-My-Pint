@@ -29,7 +29,6 @@ struct ContentView: View {
                         viewModel.startLocationUpdates()
                     }
 
-                    // Filter bar at top
                     FilterBar(viewModel: viewModel)
                 }
 
@@ -47,70 +46,85 @@ struct ContentView: View {
 
 struct PermissionRequestView: View {
     let onRequest: () -> Void
+    @Environment(\.colorScheme) var colorScheme
+
+    private var isDark: Bool { colorScheme == .dark }
 
     var body: some View {
-        VStack(spacing: 24) {
-            Image(systemName: "location.circle.fill")
-                .font(.system(size: 80))
-                .foregroundColor(.blue)
+        ZStack {
+            (isDark ? Color(hex: "1a1a1a") : Color(hex: "F5F0E6"))
+                .ignoresSafeArea()
 
-            Text("Location Access Needed")
-                .font(.system(size: 24, weight: .semibold))
+            VStack(spacing: 24) {
+                Image(systemName: "location.circle.fill")
+                    .font(.system(size: 80))
+                    .foregroundColor(isDark ? Color(hex: "ff3b30") : Color(hex: "c41e3a"))
 
-            Text("Find My Pint needs your location to show you the nearest pubs and beer shops.")
-                .font(.system(size: 16))
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
+                Text("Location Access Needed")
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundColor(isDark ? .white : Color(hex: "222222"))
+
+                Text("Find My Pint needs your location to show you the nearest pubs and beer shops.")
+                    .font(.system(size: 16))
+                    .foregroundColor(isDark ? .white.opacity(0.6) : Color(hex: "666666"))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+
+                Button(action: onRequest) {
+                    Text("Enable Location")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(isDark ? Color(hex: "ff3b30") : Color(hex: "c41e3a"))
+                        .cornerRadius(12)
+                }
                 .padding(.horizontal, 32)
-
-            Button(action: onRequest) {
-                Text("Enable Location")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(Color.blue)
-                    .cornerRadius(12)
             }
-            .padding(.horizontal, 32)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(.systemGroupedBackground))
     }
 }
 
 struct PermissionDeniedView: View {
+    @Environment(\.colorScheme) var colorScheme
+
+    private var isDark: Bool { colorScheme == .dark }
+
     var body: some View {
-        VStack(spacing: 24) {
-            Image(systemName: "location.slash.fill")
-                .font(.system(size: 80))
-                .foregroundColor(.red)
+        ZStack {
+            (isDark ? Color(hex: "1a1a1a") : Color(hex: "F5F0E6"))
+                .ignoresSafeArea()
 
-            Text("Location Access Denied")
-                .font(.system(size: 24, weight: .semibold))
+            VStack(spacing: 24) {
+                Image(systemName: "location.slash.fill")
+                    .font(.system(size: 80))
+                    .foregroundColor(isDark ? Color(hex: "ff3b30") : Color(hex: "c41e3a"))
 
-            Text("Please enable location access in Settings to use Find My Pint.")
-                .font(.system(size: 16))
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
+                Text("Location Access Denied")
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundColor(isDark ? .white : Color(hex: "222222"))
 
-            Button(action: {
-                if let url = URL(string: UIApplication.openSettingsURLString) {
-                    UIApplication.shared.open(url)
+                Text("Please enable location access in Settings to use Find My Pint.")
+                    .font(.system(size: 16))
+                    .foregroundColor(isDark ? .white.opacity(0.6) : Color(hex: "666666"))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+
+                Button(action: {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }) {
+                    Text("Open Settings")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(isDark ? Color(hex: "ff3b30") : Color(hex: "c41e3a"))
+                        .cornerRadius(12)
                 }
-            }) {
-                Text("Open Settings")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(Color.blue)
-                    .cornerRadius(12)
+                .padding(.horizontal, 32)
             }
-            .padding(.horizontal, 32)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(.systemGroupedBackground))
     }
 }

@@ -2,15 +2,18 @@ import SwiftUI
 
 struct FilterBar: View {
     @ObservedObject var viewModel: PlaceViewModel
+    @Environment(\.colorScheme) var colorScheme
+
+    private var isDark: Bool { colorScheme == .dark }
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
-                // All / None quick toggles
                 QuickFilterChip(
                     title: "All",
                     icon: "checkmark.circle.fill",
-                    isSelected: viewModel.activeFilters.count == PlaceCategory.allCases.count
+                    isSelected: viewModel.activeFilters.count == PlaceCategory.allCases.count,
+                    isDark: isDark
                 ) {
                     viewModel.setAllFilters(true)
                 }
@@ -18,7 +21,8 @@ struct FilterBar: View {
                 QuickFilterChip(
                     title: "None",
                     icon: "xmark.circle.fill",
-                    isSelected: viewModel.activeFilters.isEmpty
+                    isSelected: viewModel.activeFilters.isEmpty,
+                    isDark: isDark
                 ) {
                     viewModel.setAllFilters(false)
                 }
@@ -26,12 +30,12 @@ struct FilterBar: View {
                 Divider()
                     .frame(height: 24)
 
-                // Category filters
                 ForEach(PlaceCategory.allCases) { category in
                     FilterChip(
                         title: category.displayName,
                         icon: category.icon,
-                        isSelected: viewModel.activeFilters.contains(category)
+                        isSelected: viewModel.activeFilters.contains(category),
+                        isDark: isDark
                     ) {
                         viewModel.toggleFilter(category)
                     }
@@ -41,14 +45,7 @@ struct FilterBar: View {
             .padding(.vertical, 8)
         }
         .background(
-            LinearGradient(
-                colors: [
-                    Color(hex: "0f0c29").opacity(0.95),
-                    Color(hex: "302b63").opacity(0.95)
-                ],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
+            (isDark ? Color(hex: "1a1a1a") : Color(hex: "F5F0E6")).opacity(0.98)
         )
     }
 }
@@ -57,6 +54,7 @@ struct FilterChip: View {
     let title: String
     let icon: String
     let isSelected: Bool
+    let isDark: Bool
     let action: () -> Void
 
     var body: some View {
@@ -73,19 +71,23 @@ struct FilterChip: View {
             .background(
                 Capsule()
                     .fill(isSelected
-                        ? AnyShapeStyle(LinearGradient(
-                            colors: [Color(hex: "00d4ff").opacity(0.3), Color(hex: "7b2ff7").opacity(0.3)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        ))
-                        : AnyShapeStyle(Color.white.opacity(0.1))
+                        ? (isDark ? Color(hex: "ff3b30").opacity(0.25) : Color(hex: "c41e3a").opacity(0.15))
+                        : (isDark ? .white.opacity(0.08) : Color(hex: "e8e4dc"))
                     )
             )
             .overlay(
                 Capsule()
-                    .stroke(isSelected ? Color(hex: "00d4ff").opacity(0.5) : Color.clear, lineWidth: 1)
+                    .stroke(
+                        isSelected
+                            ? (isDark ? Color(hex: "ff3b30").opacity(0.6) : Color(hex: "c41e3a").opacity(0.4))
+                            : .clear,
+                        lineWidth: 1
+                    )
             )
-            .foregroundColor(.white)
+            .foregroundColor(isSelected
+                ? (isDark ? Color(hex: "ff3b30") : Color(hex: "c41e3a"))
+                : (isDark ? .white.opacity(0.7) : Color(hex: "444444"))
+            )
         }
         .buttonStyle(.plain)
     }
@@ -95,6 +97,7 @@ struct QuickFilterChip: View {
     let title: String
     let icon: String
     let isSelected: Bool
+    let isDark: Bool
     let action: () -> Void
 
     var body: some View {
@@ -111,15 +114,23 @@ struct QuickFilterChip: View {
             .background(
                 Capsule()
                     .fill(isSelected
-                        ? Color.white.opacity(0.2)
-                        : Color.white.opacity(0.05)
+                        ? (isDark ? .white.opacity(0.15) : Color(hex: "dddddd"))
+                        : (isDark ? .white.opacity(0.05) : Color(hex: "eeeeee"))
                     )
             )
             .overlay(
                 Capsule()
-                    .stroke(isSelected ? Color.white.opacity(0.4) : Color.white.opacity(0.1), lineWidth: 1)
+                    .stroke(
+                        isSelected
+                            ? (isDark ? .white.opacity(0.3) : Color(hex: "cccccc"))
+                            : (isDark ? .white.opacity(0.1) : Color(hex: "dddddd")),
+                        lineWidth: 1
+                    )
             )
-            .foregroundColor(.white.opacity(isSelected ? 1 : 0.6))
+            .foregroundColor(isDark
+                ? (.white.opacity(isSelected ? 1 : 0.5))
+                : (Color(hex: "333333").opacity(isSelected ? 1 : 0.5))
+            )
         }
         .buttonStyle(.plain)
     }
