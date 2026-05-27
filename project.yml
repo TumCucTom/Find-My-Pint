@@ -11,6 +11,8 @@ settings:
     SWIFT_VERSION: "5.9"
     TARGETED_DEVICE_FAMILY: "1"
     GENERATE_INFOPLIST_FILE: YES
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
     INFOPLIST_KEY_UILaunchScreen_Generation: YES
     INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
     INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: UIInterfaceOrientationPortrait
@@ -25,9 +27,9 @@ targets:
         type: group
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.findmypint.app
-        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Find My Pint needs your location to show pubs near you on the map."
-        INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription: "Find My Pint needs your location to notify you when you're near a pub."
+        PRODUCT_BUNDLE_IDENTIFIER: com.findmypint.beerfinder
+        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Find My Pint - Beer finder needs your location to show pubs near you on the map."
+        INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription: "Find My Pint - Beer finder needs your location to notify you when you're near a pub."
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         DEVELOPMENT_TEAM: ""
