@@ -13,19 +13,24 @@ struct ContentView: View {
                 }
 
             case .authorizedWhenInUse, .authorizedAlways:
-                TabView {
-                    CompassView(viewModel: viewModel)
-                        .tabItem {
-                            Label("Nearest", systemImage: "scope")
-                        }
+                ZStack(alignment: .top) {
+                    TabView {
+                        CompassView(viewModel: viewModel)
+                            .tabItem {
+                                Label("Nearest", systemImage: "scope")
+                            }
 
-                    PlaceMapView(viewModel: viewModel)
-                        .tabItem {
-                            Label("Map", systemImage: "map")
-                        }
-                }
-                .onAppear {
-                    viewModel.startLocationUpdates()
+                        PlaceMapView(viewModel: viewModel)
+                            .tabItem {
+                                Label("Map", systemImage: "map")
+                            }
+                    }
+                    .onAppear {
+                        viewModel.startLocationUpdates()
+                    }
+
+                    // Filter bar at top
+                    FilterBar(viewModel: viewModel)
                 }
 
             case .denied, .restricted:

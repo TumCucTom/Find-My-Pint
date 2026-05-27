@@ -4,12 +4,26 @@ import CoreLocation
 
 // MARK: - PlaceCategory
 
-enum PlaceCategory: String, CaseIterable {
+enum PlaceCategory: String, CaseIterable, Identifiable {
     case pub
     case bar
+    case restaurant
     case offLicence
     case shop
     case unknown
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .pub: return "Pubs"
+        case .bar: return "Bars"
+        case .restaurant: return "Restaurants"
+        case .offLicence: return "Off-Licences"
+        case .shop: return "Shops"
+        case .unknown: return "Other"
+        }
+    }
 
     init(from mapItem: MKMapItem) {
         guard let category = mapItem.pointOfInterestCategory else {
@@ -19,11 +33,13 @@ enum PlaceCategory: String, CaseIterable {
 
         let categoryString = String(describing: category)
 
-        if categoryString.contains("pub") || categoryString.contains("brewery") {
+        if categoryString.contains("pub") || categoryString.contains("brewery") || categoryString.contains("brewery") {
             self = .pub
-        } else if categoryString.contains("bar") || categoryString.contains("nightclub") {
+        } else if categoryString.contains("bar") || categoryString.contains("nightclub") || categoryString.contains("nightLife") {
             self = .bar
-        } else if categoryString.contains("winery") || categoryString.contains("liquor") {
+        } else if categoryString.contains("restaurant") || categoryString.contains("food") {
+            self = .restaurant
+        } else if categoryString.contains("winery") || categoryString.contains("liquor") || categoryString.contains("wine") {
             self = .offLicence
         } else if categoryString.contains("shop") || categoryString.contains("store") || categoryString.contains("market") {
             self = .shop
@@ -36,9 +52,21 @@ enum PlaceCategory: String, CaseIterable {
         switch self {
         case .pub: return "🍺"
         case .bar: return "🍸"
+        case .restaurant: return "🍽️"
         case .offLicence: return "🍷"
         case .shop: return "🏪"
         case .unknown: return "📍"
+        }
+    }
+
+    var searchTerms: [String] {
+        switch self {
+        case .pub: return ["pub", "brewery", "wetherspoons", "wetherspoon", "jd wetherspoon"]
+        case .bar: return ["bar", "nightclub", "wine bar", "cocktail bar", "sports bar", "tavern"]
+        case .restaurant: return ["restaurant", "cafe", "bistro", "eatery"]
+        case .offLicence: return ["off licence", "off-licence", "liquor store", "wine shop", "beer shop"]
+        case .shop: return ["convenience store", "supermarket", "corner shop"]
+        case .unknown: return []
         }
     }
 }

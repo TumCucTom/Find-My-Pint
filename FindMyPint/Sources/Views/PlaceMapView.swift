@@ -9,7 +9,7 @@ struct PlaceMapView: View {
     var body: some View {
         ZStack {
             Map(position: $cameraPosition) {
-                ForEach(viewModel.places) { place in
+                ForEach(viewModel.filteredPlaces) { place in
                     Annotation(place.name, coordinate: place.coordinate) {
                         Circle()
                             .fill(tintColor(for: place))
