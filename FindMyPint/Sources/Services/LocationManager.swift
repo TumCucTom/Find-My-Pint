@@ -15,7 +15,7 @@ final class LocationManager: NSObject, ObservableObject {
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyBest
-        manager.headingFilter = 1
+        manager.headingFilter = 5
         authorizationStatus = manager.authorizationStatus
     }
 

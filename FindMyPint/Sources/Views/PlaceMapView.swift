@@ -62,15 +62,6 @@ struct PlaceMapView: View {
                 ))
             }
         }
-        .onChange(of: locationManager.location) { _, newLocation in
-            if let location = newLocation {
-                cameraPosition = .region(MKCoordinateRegion(
-                    center: location.coordinate,
-                    latitudinalMeters: 2000,
-                    longitudinalMeters: 2000
-                ))
-            }
-        }
     }
 
     private func tintColor(for place: Place) -> Color {
